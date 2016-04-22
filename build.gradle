@@ -1,0 +1,90 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            name "central snapshots"
+            url "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+        maven {
+            name "gradle plugins"
+            url "https://plugins.gradle.org/m2/"
+        }
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.12.0'
+        classpath group: 'com.techshroom', name: 'Aversion', version: '2.0.2-SNAPSHOT'
+    }
+}
+apply plugin: 'java'
+apply plugin: 'aversion-util'
+apply plugin: 'idea'
+
+util {
+    javaVersion = '1.8'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name "central snapshots"
+        url "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
+    maven {
+        name "sponge"
+        url "https://repo.spongepowered.org/maven/"
+    }
+}
+
+ext.spongeApiVersion = '4.1.0'
+ext.mcVersion = '1.8.9'
+dependencies {
+    compile group: 'org.spongepowered', name: 'spongeapi', version: project.spongeApiVersion + '-SNAPSHOT'
+
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+}
+idea.project.languageLevel = util.javaVersion
+
+apply plugin: 'com.github.hierynomus.license'
+
+defaultTasks 'clean', 'licenseFormat', 'build'
+
+configure([compileJava, compileTestJava]) {
+    options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
+    options.deprecation = true
+    options.encoding = 'UTF-8'
+    options.incremental = true
+    options.fork = true
+}
+
+license {
+    ext {
+        name = project.name
+        organization = project.organization
+        url = project.url
+    }
+    header = rootProject.file('HEADER.txt')
+    ignoreFailures = false
+    strictCheck = true
+    include '**/*.java'
+    mapping {
+        java = 'SLASHSTAR_STYLE'
+    }
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+task detokenizeSource(type: Copy) {
+    from 'src/main/java'
+    into 'build/detokenizedSource'
+    filter(ReplaceTokens, tokens: [
+        'ID': project.id.toString(),
+        'NAME': project.name.toString(),
+        'VERSION': project.version.toString()
+    ])
+}
+
+compileJava.dependsOn(detokenizeSource)
+compileJava.source = fileTree(dir: 'build/detokenizedSource')
+
